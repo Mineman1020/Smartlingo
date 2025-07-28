@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartLingo Multimodal Translator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #f0f8ff, #dbeafe);
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 950px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 1em;
+    }
+    .btn {
+      padding: 10px 20px;
+      margin: 8px;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #005fa3;
+    }
+    #output, #history {
+      margin-top: 20px;
+      font-size: 1.1em;
+      background: #f1f8e9;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    #capturedImage {
+      display: block;
+      margin-top: 15px;
+      max-width: 100%;
+      border-radius: 10px;
+    }
+    #cameraModal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #cameraContent {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+    }
+    #videoPreview {
+      width: 100%;
+      border-radius: 10px;
+    }
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.9em;
+      color: #777;
+    }
+  </style>
+</head>
+<body onload="initializeSession()">
+  <div class="container">
+    <h1>🌐 SmartLingo Multimodal Translator</h1>
+
+    <label for="srcLang">Source Language:</label>
+    <select id="srcLang">
+      <option value="auto">Auto Detect</option>
+      <option value="en">English</option>
+      <option value="hi">Hindi</option>
+      <option value="kn">Kannada</option>
+      <option value="fr">French</option>
+    </select>
+
+    <label for="targetLang">Target Language:</label>
+    <select id="targetLang">
+      <option value="en">English</option>
+      <option value="hi">Hindi</option>
+      <option value="kn">Kannada</option>
+      <option value="fr">French</option>
+    </select>
+
+    <textarea id="textInput" placeholder="Enter text to translate..."></textarea>
+
+    <button class="btn" onclick="startVoiceTranslation()">🎙️ Live Voice Translate</button>
+    <button class="btn" onclick="openCameraModal()">📷 Open Camera</button>
+    <img id="capturedImage" src="" alt="Captured Image">
+
+    <button class="btn" onclick="translateText()">🔄 Translate Text</button>
+    <button class="btn" onclick="speakOutput()">🔊 Play Audio</button>
+    <button class="btn" onclick="clearFields()">🧹 Clear</button>
+
+    <div id="output">Translated Text: <span id="translatedText"></span></div>
+
+    <div id="history">
+      <h3>🕘 Translation History</h3>
+      <ul id="historyList"></ul>
+    </div>
+
+    <footer>
+      &copy; 2025 SmartLingo AI — Powered by code, camera, and curiosity 🌍
+    </footer>
+  </div>
+
+  <!-- Camera Modal -->
+  <div id="cameraModal">
+    <div id="cameraContent">
+      <video id="videoPreview" autoplay playsinline></video><br>
+      <button class="btn" onclick="captureImage()">📸 Capture</button>
+      <button class="btn" onclick="closeCameraModal()">❌ Close</button>
+    </div>
+  </div>
+
+  <script>
+    let videoStream;
+    let recognition;
+    const history = [];
+
+    function initializeSession() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => videoStream = stream)
+        .catch(err => alert('Permission error: ' + err));
+    }
+
+    function openCameraModal() {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          videoStream = stream;
+          const video = document.getElementById('videoPreview');
+          video.srcObject = stream;
+          document.getElementById('cameraModal').style.display = 'flex';
+        })
+        .catch(err => alert('Camera error: ' + err));
+    }
+
+    function closeCameraModal() {
+      document.getElementById('cameraModal').style.display = 'none';
+      videoStream.getTracks().forEach(track => track.stop());
+    }
+
+    function captureImage() {
+      const video = document.getElementById("videoPreview");
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL("image/png");
+      document.getElementById("capturedImage").src = imageData;
+      closeCameraModal();
+      simulateImageTranslation(imageData);
+    }
+
+    function simulateImageTranslation(imageData) {
+      const detectedText = "Sample text from image (simulated)";
+      const targetLang = document.getElementById("targetLang").value;
+      const translated = `[Translated to ${targetLang}]: ${detectedText}`;
+      document.getElementById("translatedText").textContent = translated;
+      addToHistory(detectedText, translated);
+    }
+
+    function translateText() {
+      const input = document.getElementById("textInput").value.trim();
+      const targetLang = document.getElementById("targetLang").value;
+      if (!input) return alert("Please enter text to translate");
+      const translated = `[Translated to ${targetLang}]: ${input} (simulated)`;
+      document.getElementById("translatedText").textContent = translated;
+      addToHistory(input, translated);
+    }
+
+    function speakOutput() {
+      const text = document.getElementById("translatedText").textContent;
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.speak(utterance);
+    }
+
+    function clearFields() {
+      document.getElementById("textInput").value = '';
+      document.getElementById("translatedText").textContent = '';
+    }
+
+    function addToHistory(original, translated) {
+      const li = document.createElement("li");
+      li.innerHTML = `<strong>${original}</strong> → <em>${translated}</em>
+        <button onclick="exploreWord('${original}')">📖 Learn</button>`;
+      document.getElementById("historyList").appendChild(li);
+    }
+
+    function exploreWord(word) {
+      alert(`Learn about "${word}"\n(Definition, pronunciation, usage examples to be added)`);
+    }
+
+    function startVoiceTranslation() {
+      if (!('webkitSpeechRecognition' in window)) {
+        alert("Web Speech API not supported in this browser");
+        return;
+      }
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = document.getElementById("srcLang").value === "auto" ? "en-US" : document.getElementById("srcLang").value;
+
+      recognition.onresult = function(event) {
+        const input = event.results[0][0].transcript;
+        const targetLang = document.getElementById("targetLang").value;
+        const translated = `[Translated to ${targetLang}]: ${input} (simulated voice translation)`;
+        document.getElementById("translatedText").textContent = translated;
+        addToHistory(input, translated);
+        speakOutput();
+      };
+      recognition.onerror = function(event) {
+        alert("Voice translation error: " + event.error);
+      };
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
